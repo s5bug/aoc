@@ -18,8 +18,8 @@ object Day02 extends AOCApp(2020, 2) {
   def solve[F[_]: Async](input: Stream[F, String], validation: Entry => Boolean): F[String] =
     input
       .through(text.lines)
-      .map(entry.parse)
-      .collect { case Right((_, entry)) => entry }
+      .map(entry.parseAll)
+      .collect { case Right(entry) => entry }
       .filter(validation)
       .compile
       .count
