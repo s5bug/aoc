@@ -16,7 +16,15 @@ object Day02 extends AOCApp(2021, 2) {
 
   case class Command(direction: Direction, length: Int)
 
-  case class Position(horiz: Int = 0, depth: Int = 0, aim: Int = 0)
+  case class Position(horiz: Int = 0, depth: Int = 0, aim: Int = 0) {
+    def move(c: Command): Position = {
+      c match {
+        case Command(Up, length) => Position(horiz, depth, aim - length)
+        case Command(Down, length) => Position(horiz, depth, aim + length)
+        case Command(Forward, length) => Position(horiz + length, depth + (length * aim), aim)
+      }
+    }
+  }
 
   val natural: Parser[Int] = Parser.charsWhile(_.isDigit).map(_.toInt)
 
@@ -27,29 +35,19 @@ object Day02 extends AOCApp(2021, 2) {
 
   val command: Parser[Command] = (direction, Parser.string(" ") *> natural).mapN(Command)
 
-  def solve[F[_]: Async](input: Stream[F, String], move: (Position, Command) => Position): F[String] =
+  def solve[F[_]: Async](input: Stream[F, String]): F[Position] =
     input
       .through(text.lines)
       .filter(_.nonEmpty)
       .map(command.parseAll)
       .collect { case Right(c) => c }
       .compile
-      .fold(Position())(move)
-      .map(p => p.horiz * p.depth)
-      .map(_.toString)
+      .fold(Position())(_.move(_))
 
   override def part1[F[_]: Async](input: Stream[F, String]): F[String] =
-    solve(input, (pos, c) => c match {
-      case Command(Up, length) => pos.copy(depth = pos.depth - length)
-      case Command(Down, length) => pos.copy(depth = pos.depth + length)
-      case Command(Forward, length) => pos.copy(horiz = pos.horiz + length)
-    })
+    solve(input).map(p => p.horiz * p.aim).map(_.toString)
 
   override def part2[F[_]: Async](input: Stream[F, String]): F[String] =
-    solve(input, (pos, c) => c match {
-      case Command(Up, length) => pos.copy(aim = pos.aim - length)
-      case Command(Down, length) => pos.copy(aim = pos.aim + length)
-      case Command(Forward, length) => pos.copy(horiz = pos.horiz + length, depth = pos.depth + (length * pos.aim))
-    })
+    solve(input).map(p => p.horiz * p.depth).map(_.toString)
 
 }
