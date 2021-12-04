@@ -47,7 +47,7 @@ object Day04 extends AOCApp(2021, 4) {
 
       val initialScore = cells.sum
       val result = go(BoardProgress(initialScore, 0, 0))
-      BoardResult(result.score * calls(result.steps - 1), result.steps - 1)
+      BoardResult(result.score * calls(result.steps - 1), result.steps)
     }
   }
 
