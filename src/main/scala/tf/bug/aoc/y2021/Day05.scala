@@ -39,11 +39,16 @@ object Day05 extends AOCApp(2021, 5) {
       .filter(filter)
       .compile
       .fold(Map[Point, Int]()) {
-        case (acc, line) =>
-          line.range.foldLeft(acc) { (m, p) => m.updatedWith(p) {
-            case Some(n) => Some(n + 1)
-            case None => Some(1)
-          }}
+        (acc, line) =>
+          // For every line in our input,
+          line.range.foldLeft(acc) {
+            (m, p) =>
+              // Increment the map at every point in that line
+              m.updatedWith(p) {
+                case Some(n) => Some(n + 1)
+                case None => Some(1)
+              }
+          }
       }
       .map(_.count(_._2 >= 2))
       .map(_.toString)
