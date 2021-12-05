@@ -12,8 +12,13 @@ import scala.annotation.tailrec
 
 object Day04 extends AOCApp(2021, 4) {
 
-  case class BoardProgress(score: Int, steps: Int, marks: Int)
   case class BoardResult(totalScore: Int, steps: Int)
+
+  def generateLut(calls: Vector[Int]): Array[Int] = {
+    val result: Array[Int] = new Array(_length = 100)
+    calls.zipWithIndex.foreach { case (call, idx) => result(call) = idx }
+    result
+  }
 
   def hasBingo(marks: Int): Boolean = {
     val rowMask: Int = (1 << 5) - 1
@@ -29,41 +34,44 @@ object Day04 extends AOCApp(2021, 4) {
   }
 
   case class Board(cells: Vector[Int]) {
-    def result(calls: Vector[Int]): BoardResult = {
-      @tailrec def go(progress: BoardProgress): BoardProgress = {
-        if(progress.steps > calls.size) progress
-        else if(hasBingo(progress.marks)) progress
-        else {
-          val call = calls(progress.steps)
-          val callIdx = cells.indexOf(call)
-          if(callIdx == -1) go(BoardProgress(progress.score, progress.steps + 1, progress.marks))
-          else {
-            val newScore = progress.score - call
-            val mark = progress.marks | (1 << callIdx)
-            go(BoardProgress(newScore, progress.steps + 1, mark))
-          }
-        }
-      }
+    def winningTurn(lut: Array[Int]): Int = {
+      val indices = cells.map(lut)
+      (0 to 4).map { major =>
+        val row = ((major * 5) until ((major + 1) * 5) by 1).map(indices)
+        val col = (major until (major + 25) by 5).map(indices)
+        Math.min(row.max, col.max)
+      }.min
+    }
 
-      val initialScore = cells.sum
-      val result = go(BoardProgress(initialScore, 0, 0))
-      BoardResult(result.score * calls(result.steps - 1), result.steps)
+    def scoreOnTurn(calls: Vector[Int], lut: Array[Int], turn: Int): Int = {
+      cells.filter(lut(_) > turn).sum * calls(turn)
+    }
+
+    def result(calls: Vector[Int], lut: Array[Int]): BoardResult = {
+      val steps = winningTurn(lut)
+      BoardResult(scoreOnTurn(calls, lut, steps), steps)
     }
   }
 
   trait Strategy {
-    def select(x: BoardResult, y: BoardResult): BoardResult
+    def select(calls: Vector[Int], lut: Array[Int], x: BoardResult, y: Board): BoardResult
     def exit(r: BoardResult, calls: Vector[Int]): Boolean
   }
   object Win extends Strategy {
-    override def select(x: BoardResult, y: BoardResult): BoardResult =
-      List(x, y).minBy(_.steps)
+    override def select(calls: Vector[Int], lut: Array[Int], x: BoardResult, y: Board): BoardResult = {
+      val ySteps = y.winningTurn(lut)
+      if(ySteps < x.steps) BoardResult(y.scoreOnTurn(calls, lut, ySteps), ySteps)
+      else x
+    }
     override def exit(r: BoardResult, calls: Vector[Int]): Boolean =
       r.steps == 5
   }
   object Lose extends Strategy {
-    override def select(x: BoardResult, y: BoardResult): BoardResult =
-      List(x, y).maxBy(_.steps)
+    override def select(calls: Vector[Int], lut: Array[Int], x: BoardResult, y: Board): BoardResult = {
+      val ySteps = y.winningTurn(lut)
+      if(ySteps > x.steps) BoardResult(y.scoreOnTurn(calls, lut, ySteps), ySteps)
+      else x
+    }
     override def exit(r: BoardResult, calls: Vector[Int]): Boolean =
       r.steps == calls.size
   }
@@ -76,12 +84,18 @@ object Day04 extends AOCApp(2021, 4) {
       .flatMap {
         case Some((callStr, rest)) =>
           val calls = callStr.split(",").map(_.toInt).toVector
+          val lookUpTable: Array[Int] = generateLut(calls)
           val boardVectors = rest.split(_.isEmpty).filter(_.nonEmpty).map { boards =>
             boards.toVector.flatMap(_.trim.split("\\s+").map(_.toInt))
           }
-          val results = boardVectors.map(Board).map(_.result(calls))
-          val winner = results.scan1(strategy.select).takeWhile(!strategy.exit(_, calls), takeFailure = true)
-          Pull.eval(winner.compile.last).map(_.get).flatMap(Pull.output1)
+          val results = boardVectors.map(Board)
+          results.pull.uncons1.flatMap {
+            case Some((firstBoard, rest)) =>
+              val initial = firstBoard.result(calls, lookUpTable)
+              val selected = rest.scan(initial)(strategy.select(calls, lookUpTable, _, _))
+              val earlyExit = selected.takeWhile(!strategy.exit(_, calls), takeFailure = true)
+              Pull.eval(earlyExit.compile.last.map(_.get)).flatMap(Pull.output1)
+          }
       }.stream.compile.last.map(_.get.totalScore.toString)
 
   override def part1[F[_]: Async](input: Stream[F, String]): F[String] =
