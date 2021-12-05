@@ -14,26 +14,22 @@ object Day04 extends AOCApp(2021, 4) {
 
   case class BoardResult(totalScore: Int, steps: Int)
 
+  /*
+   * Based on the numbers that get called, we can generate a look-up-table, such that any board can hold the turns it's
+   * called on instead of having to indexOf the Vector repeatedly (i.e. figuring out what turn the board wins on goes
+   * from O(boardSize * numberOfCalls) to just O(boardSize)).
+   */
   def generateLut(calls: Vector[Int]): Array[Int] = {
     val result: Array[Int] = new Array(_length = 100)
     calls.zipWithIndex.foreach { case (call, idx) => result(call) = idx }
     result
   }
 
-  def hasBingo(marks: Int): Boolean = {
-    val rowMask: Int = (1 << 5) - 1
-    lazy val anyRow = (0 to 4).exists { group =>
-      val markBits = marks >> (5 * group)
-      (markBits & rowMask) == rowMask
-    }
-    lazy val columnMask = (0 to 4).foldLeft(rowMask) { (result, group) =>
-      val markBits = marks >> (5 * group)
-      result & markBits
-    }
-    anyRow || (columnMask != 0)
-  }
-
   case class Board(cells: Vector[Int]) {
+    /*
+     * The turn a column or row wins is the maximum of the turn numbers it holds.
+     * Then, for a board to win, take the minimum of all the column and row turns.
+     */
     def winningTurn(lut: Array[Int]): Int = {
       val indices = cells.map(lut)
       (0 to 4).map { major =>
@@ -43,6 +39,9 @@ object Day04 extends AOCApp(2021, 4) {
       }.min
     }
 
+    /*
+     * We don't calculate the score automatically, but it can be quickly calculated in O(1) for any specific turn.
+     */
     def scoreOnTurn(calls: Vector[Int], lut: Array[Int], turn: Int): Int = {
       cells.filter(lut(_) > turn).sum * calls(turn)
     }
@@ -85,11 +84,18 @@ object Day04 extends AOCApp(2021, 4) {
         case Some((callStr, rest)) =>
           val calls = callStr.split(",").map(_.toInt).toVector
           val lookUpTable: Array[Int] = generateLut(calls)
+
           val boardVectors = rest.split(_.isEmpty).filter(_.nonEmpty).map { boards =>
             boards.toVector.flatMap(_.trim.split("\\s+").map(_.toInt))
           }
+
           val results = boardVectors.map(Board)
           results.pull.uncons1.flatMap {
+            /*
+             * The first board doesn't have to be selected against, but scan1 won't work as we don't want to convert
+             * every single Board into a BoardResult (we don't want to calculate the score for a board unless it's a
+             * selected board, which is what the Strategies do).
+             */
             case Some((firstBoard, rest)) =>
               val initial = firstBoard.result(calls, lookUpTable)
               val selected = rest.scan(initial)(strategy.select(calls, lookUpTable, _, _))
