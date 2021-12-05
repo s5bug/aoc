@@ -20,7 +20,7 @@ object Day04 extends AOCApp(2021, 4) {
   def generateLut(calls: Vector[Int]): ArraySeq[Int] = {
     val result: Array[Int] = new Array(_length = 100)
     // Using ArraySeq.tabulate here would be O(numberOfCalls) * Vector#indexOf instead of just O(numberOfCalls)
-    calls.zipWithIndex.foreach { case (call, idx) => result(call) = idx }
+    calls.iterator.zipWithIndex.foreach { case (call, idx) => result(call) = idx }
     // But we can wrap still wrap an Array in an ArraySeq to preserve immutability
     new ArraySeq.ofInt(result)
   }
