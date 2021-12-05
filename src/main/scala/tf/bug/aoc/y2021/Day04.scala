@@ -1,14 +1,12 @@
 package tf.bug.aoc.y2021
 
 import cats.effect._
-import cats.parse._
 import cats.syntax.all._
 import fs2._
 
-import scala.collection.BitSet
 import tf.bug.aoc.AOCApp
 
-import scala.annotation.tailrec
+import scala.collection.immutable.ArraySeq
 
 object Day04 extends AOCApp(2021, 4) {
 
@@ -19,10 +17,12 @@ object Day04 extends AOCApp(2021, 4) {
    * called on instead of having to indexOf the Vector repeatedly (i.e. figuring out what turn the board wins on goes
    * from O(boardSize * numberOfCalls) to just O(boardSize)).
    */
-  def generateLut(calls: Vector[Int]): Array[Int] = {
+  def generateLut(calls: Vector[Int]): ArraySeq[Int] = {
     val result: Array[Int] = new Array(_length = 100)
+    // Using ArraySeq.tabulate here would be O(numberOfCalls) * Vector#indexOf instead of just O(numberOfCalls)
     calls.zipWithIndex.foreach { case (call, idx) => result(call) = idx }
-    result
+    // But we can wrap still wrap an Array in an ArraySeq to preserve immutability
+    new ArraySeq.ofInt(result)
   }
 
   case class Board(cells: Vector[Int]) {
@@ -30,7 +30,7 @@ object Day04 extends AOCApp(2021, 4) {
      * The turn a column or row wins is the maximum of the turn numbers it holds.
      * Then, for a board to win, take the minimum of all the column and row turns.
      */
-    def winningTurn(lut: Array[Int]): Int = {
+    def winningTurn(lut: ArraySeq[Int]): Int = {
       val indices = cells.map(lut)
       (0 to 4).map { major =>
         val row = ((major * 5) until ((major + 1) * 5) by 1).map(indices)
@@ -42,22 +42,22 @@ object Day04 extends AOCApp(2021, 4) {
     /*
      * We don't calculate the score automatically, but it can be quickly calculated in O(boardSize) for any specific turn.
      */
-    def scoreOnTurn(calls: Vector[Int], lut: Array[Int], turn: Int): Int = {
+    def scoreOnTurn(calls: Vector[Int], lut: ArraySeq[Int], turn: Int): Int = {
       cells.filter(lut(_) > turn).sum * calls(turn)
     }
 
-    def result(calls: Vector[Int], lut: Array[Int]): BoardResult = {
+    def result(calls: Vector[Int], lut: ArraySeq[Int]): BoardResult = {
       val steps = winningTurn(lut)
       BoardResult(scoreOnTurn(calls, lut, steps), steps)
     }
   }
 
   trait Strategy {
-    def select(calls: Vector[Int], lut: Array[Int], x: BoardResult, y: Board): BoardResult
+    def select(calls: Vector[Int], lut: ArraySeq[Int], x: BoardResult, y: Board): BoardResult
     def exit(r: BoardResult, calls: Vector[Int]): Boolean
   }
   object Win extends Strategy {
-    override def select(calls: Vector[Int], lut: Array[Int], x: BoardResult, y: Board): BoardResult = {
+    override def select(calls: Vector[Int], lut: ArraySeq[Int], x: BoardResult, y: Board): BoardResult = {
       val ySteps = y.winningTurn(lut)
       if(ySteps < x.steps) BoardResult(y.scoreOnTurn(calls, lut, ySteps), ySteps)
       else x
@@ -66,7 +66,7 @@ object Day04 extends AOCApp(2021, 4) {
       r.steps == 5
   }
   object Lose extends Strategy {
-    override def select(calls: Vector[Int], lut: Array[Int], x: BoardResult, y: Board): BoardResult = {
+    override def select(calls: Vector[Int], lut: ArraySeq[Int], x: BoardResult, y: Board): BoardResult = {
       val ySteps = y.winningTurn(lut)
       if(ySteps > x.steps) BoardResult(y.scoreOnTurn(calls, lut, ySteps), ySteps)
       else x
@@ -83,7 +83,7 @@ object Day04 extends AOCApp(2021, 4) {
       .flatMap {
         case Some((callStr, rest)) =>
           val calls = callStr.split(",").map(_.toInt).toVector
-          val lookUpTable: Array[Int] = generateLut(calls)
+          val lookUpTable: ArraySeq[Int] = generateLut(calls)
 
           val boardVectors = rest.split(_.isEmpty).filter(_.nonEmpty).map { boards =>
             boards.toVector.flatMap(_.trim.split("\\s+").map(_.toInt))
