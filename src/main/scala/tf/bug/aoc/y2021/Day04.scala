@@ -40,7 +40,7 @@ object Day04 extends AOCApp(2021, 4) {
     }
 
     /*
-     * We don't calculate the score automatically, but it can be quickly calculated in O(1) for any specific turn.
+     * We don't calculate the score automatically, but it can be quickly calculated in O(boardSize) for any specific turn.
      */
     def scoreOnTurn(calls: Vector[Int], lut: Array[Int], turn: Int): Int = {
       cells.filter(lut(_) > turn).sum * calls(turn)
