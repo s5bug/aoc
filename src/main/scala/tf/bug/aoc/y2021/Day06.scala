@@ -71,10 +71,6 @@ object Day06 extends AOCApp(2021, 6) {
   def populationAt(day: Int): BigInt = {
     pairs.map { case (coeff, root) => coeff * root.pow(day) }.reduce(_ + _).real.round.toRational.toBigInt
   }
-  val population: LazyList[BigInt] = {
-    def populationFrom(start: Int): LazyList[BigInt] = populationAt(start) #:: populationFrom(start + 1)
-    populationFrom(6)
-  }
 
   def solve[F[_]: Async](input: Stream[F, String], day: Int): F[String] =
     input
@@ -82,7 +78,15 @@ object Day06 extends AOCApp(2021, 6) {
       .filter(_.nonEmpty)
       .flatMap(s => Stream.emits(s.split(",")))
       .map(_.toInt)
-      .map(age => population(day - age))
+      .mapAccumulate(Map[Int, BigInt]()) { (memo, age) =>
+        memo.get(day - age) match {
+          case Some(res) => (memo, res)
+          case None =>
+            val res = populationAt(day - age + 6)
+            (memo + ((day - age) -> res), res)
+        }
+      }
+      .map(_._2)
       .compile
       .foldMonoid
       .map(_.toString)
