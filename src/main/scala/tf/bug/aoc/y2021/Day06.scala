@@ -8,6 +8,10 @@ import fs2._
 import spire.math._
 import tf.bug.aoc.AOCApp
 
+/*
+ * Much thanks and love to https://twitter.com/Daanniii6, who taught me about recurrence relations, taught me how to
+ * solve them, and did most of the number crunching in numpy for me. This solution would not be possible without her.
+ */
 object Day06 extends AOCApp(2021, 6) {
 
   /*
