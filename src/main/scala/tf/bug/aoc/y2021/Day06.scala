@@ -15,17 +15,27 @@ import tf.bug.aoc.AOCApp
 object Day06 extends AOCApp(2021, 6) {
 
   /*
-   * Given the recurrence relation f(n) = f(n - 7) + f(n - 9), we have a solution
+   * Given the recurrence relation f(n) = f(n - 7) + f(n - 9), we have a polynomial
    *
-   *   f(n) = [roots of `r^9 = r^2 + 1`].zipWithIndex.map(c_idx * r_idx^n)
+   *   r^9 = r^(9 - 7) + r^(9 - 9) = r^2 + 1
    *
-   * where c_1 through c_9 are constants.
+   * which describes a set of complex roots, `r`. These roots can be used to describe `f` explicitly:
    *
-   * These constants can be determined by setting up a 9-dimensional matrix,
+   *   f(n) = (c_1 * r_1^n) + (c_2 * r_2^n) + (c_3 * r_3^n) + ... + (c_9 * r_9^n)
+   *
+   * where c_1 through c_9 are constants, corresponding to our initial conditions.
+   *
+   * These constants can be deduced by setting up a 9-by-9 square matrix M such that
    *
    *   M[c_1, c_2, c_3, ..., c_9] = [f(0), f(1), f(2), ..., f(8)]
    *
-   * where M looks like:
+   * representing the system of equations created by our above explicit definition of f:
+   *
+   *   f(0) = (c_1 * r_1^0) + (c_2 * r_2^0) + ...
+   *   f(1) = (c_1 * r_1^1) + (c_2 * r_2^1) + ...
+   *   etc
+   *
+   * So, M looks like:
    *
    *   /1  1  1  ... 1 \
    *   |               |
@@ -41,6 +51,8 @@ object Day06 extends AOCApp(2021, 6) {
    *   | 8  8  8      8|
    *   |r  r  r      r |
    *   \ 1  2  3 ...  9/
+   *
+   * Or, more succinctly: M_ij = (r_j)^i.
    *
    * The roots and coefficients here are approximations, but if Spire had a way to progressively approximate the complex
    * roots of polynomials, they would be generated that way.
